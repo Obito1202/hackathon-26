@@ -1,0 +1,14 @@
+# Python virtual environments
+venv/
+.venv/
+
+# Python cache and test artifacts
+__pycache__/
+.pytest_cache/
+*.py[cod]
+
+# OS/editor noise
+.DS_Store
+
+# Optional local env file
+.env
