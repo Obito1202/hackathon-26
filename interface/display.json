@@ -1,0 +1,33 @@
+{
+  "agent-id": "agent-main",
+  "children": [
+    {
+      "agent-id": "agent-research",
+      "children": [
+        { "tool-id": "tool-web-search" },
+        { "tool-id": "tool-doc-parser" },
+        {
+          "agent-id": "agent-citation",
+          "children": [
+            { "tool-id": "tool-citation-lookup" }
+          ]
+        }
+      ]
+    },
+    {
+      "agent-id": "agent-ops",
+      "children": [
+        { "tool-id": "tool-code-execution" },
+        { "tool-id": "tool-deploy" },
+        {
+          "agent-id": "agent-monitoring",
+          "children": [
+            { "tool-id": "tool-metrics-query" },
+            { "tool-id": "tool-alert-dispatch" }
+          ]
+        }
+      ]
+    },
+    { "tool-id": "tool-general-assistant" }
+  ]
+}
