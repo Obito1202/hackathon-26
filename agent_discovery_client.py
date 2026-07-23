@@ -1,3 +1,4 @@
+import ast
 import json
 import os
 
@@ -7,10 +8,16 @@ import requests
 BASE_URL = os.environ.get("AGENT_DISCOVERY_URL", "http://127.0.0.1:8000")
 
 
-def fetch_items(resource):
-    url = f"{BASE_URL}/{resource}"
+def request_json(method, path, payload=None):
+    url = f"{BASE_URL}{path}"
     try:
-        response = requests.get(url, timeout=5)
+        if method == "GET":
+            response = requests.get(url, timeout=5)
+        elif method == "PUT":
+            response = requests.put(url, json=payload, timeout=5)
+        else:
+            raise ValueError(f"Unsupported method: {method}")
+
         response.raise_for_status()
     except requests.exceptions.ConnectionError:
         print(f"Could not connect to {url}.")
@@ -21,27 +28,71 @@ def fetch_items(resource):
     return response.json()
 
 
-def print_items(kind, items):
-    print(f"Discovered {kind}:")
-    for item in items:
-        print(json.dumps(item, indent=2))
+def print_result(label, data):
+    print(f"{label}:")
+    print(json.dumps(data, indent=2))
+
+
+def parse_command(command: str):
+    parts = command.strip().split(maxsplit=2)
+    if len(parts) < 2:
+        raise ValueError("Command format should be: GET /agents or PUT /agents/agent-004")
+
+    method = parts[0].upper()
+    path = parts[1]
+    payload = None
+
+    if method not in {"GET", "PUT"}:
+        raise ValueError("Only GET and PUT are supported.")
+
+    if method == "PUT":
+        if len(parts) == 3:
+            raw_payload = parts[2]
+        else:
+            raw_payload = input("Enter JSON payload: ").strip()
+
+        if not raw_payload:
+            raise ValueError("PUT requires a JSON payload.")
+
+        try:
+            payload = json.loads(raw_payload)
+        except json.JSONDecodeError:
+            try:
+                payload = ast.literal_eval(raw_payload)
+            except (ValueError, SyntaxError):
+                raise ValueError("PUT payload must be valid JSON or a Python-style dict.")
+
+    return method, path, payload
 
 
 def main():
-    print("Choose what to discover:")
-    print("1. Agents")
-    print("2. Tools")
-    choice = input("Enter 1 or 2: ").strip()
+    print("Type commands like:")
+    print("  GET /agents")
+    print("  GET /agents/agent-001")
+    print("  GET /tools")
+    print("  PUT /agents/agent-004 {'name': 'ops-agent', 'status': 'inactive'}")
+    print("  PUT /tools/tool-003 {'name': 'document-parser-tool', 'description': 'Parse and summarize documents'}")
+    print("Type 'exit' to quit.\n")
 
-    if choice == "1":
-        items = fetch_items("agents")
-        print_items("agents", items)
-    elif choice == "2":
-        items = fetch_items("tools")
-        print_items("tools", items)
-    else:
-        print("Invalid choice. Please enter 1 or 2.")
-        raise SystemExit(1)
+    while True:
+        command = input("Enter command: ").strip()
+        if command.lower() in {"exit", "quit"}:
+            print("Bye!")
+            break
+
+        try:
+            method, path, payload = parse_command(command)
+            result = request_json(method, path, payload)
+            if method == "GET" and isinstance(result, list):
+                print("Discovered items:")
+                for item in result:
+                    print(json.dumps(item, indent=2))
+            else:
+                print_result(f"{method} {path}", result)
+        except ValueError as exc:
+            print(f"Invalid command: {exc}")
+        except requests.HTTPError as exc:
+            print(f"Request failed: {exc}")
 
 
 if __name__ == "__main__":
