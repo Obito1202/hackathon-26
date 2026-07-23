@@ -56,6 +56,7 @@ python -m pytest -q test_fastapi.py
 
 To host this API online, deploy the FastAPI app to a Python-compatible hosting service such as:
 
+- Google Cloud Run
 - Render
 - Railway
 - Fly.io
@@ -77,6 +78,50 @@ Example:
 ```bash
 uvicorn test_fastapi:app --host 0.0.0.0 --port ${PORT:-8000}
 ```
+
+### Google Cloud Run deployment
+
+This repo includes a `Dockerfile` for container-based Cloud Run deployment.
+
+#### Build the container
+
+```bash
+gcloud builds submit --tag gcr.io/PROJECT_ID/agent-discovery-api
+```
+
+#### Deploy to Cloud Run
+
+```bash
+gcloud run deploy agent-discovery-api \
+  --image gcr.io/PROJECT_ID/agent-discovery-api \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated
+```
+
+Your public API URL will look something like:
+
+```text
+https://agent-discovery-api-xxxxx-uc.a.run.app
+```
+
+### Client configuration for hosted API
+
+If you want the CLI client to use the online API instead of the local one, set the environment variable:
+
+```bash
+export AGENT_DISCOVERY_URL=https://agent-discovery-api-xxxxx-uc.a.run.app
+```
+
+Then run:
+
+```bash
+python agent_discovery_client.py
+```
+
+### Data persistence note
+
+The current implementation stores `PUT` updates in memory only. That means the API will be reachable online, but changes are lost when the container restarts or the instance is recreated. For real persistence on GCP, connect the app to a database such as Cloud SQL or Firestore.
 
 ### Deployment steps on Render
 
