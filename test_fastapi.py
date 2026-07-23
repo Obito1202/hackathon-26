@@ -31,6 +31,7 @@ class ToolUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
     status: str | None = None
+    owner: str | None = None
 
 
 AGENTS = [
@@ -94,12 +95,14 @@ TOOLS = [
         "name": "web-search-tool",
         "description": "Search the web for up-to-date information",
         "status": "available",
+        "owner": "platform-team",
     },
     {
         "id": "tool-002",
         "name": "code-execution-tool",
         "description": "Execute small code snippets in a sandbox",
         "status": "available",
+        "owner": "research-team",
     },
 ]
 
@@ -156,6 +159,13 @@ def update_agent_detail(agent_id: str, payload: AgentUpdate):
     return new_agent
 
 
+@app.get("/owner/{owner_name}")
+def get_owner_detail(owner_name: str):
+    owner_agents = [agent for agent in AGENTS if agent.get("owner") == owner_name]
+    owner_tools = [tool for tool in TOOLS if tool.get("owner") == owner_name]
+    return {"owner": owner_name, "agents": owner_agents, "tools": owner_tools}
+
+
 @app.get("/tools")
 def discover_tools():
     return TOOLS
@@ -182,6 +192,7 @@ def update_tool_detail(tool_id: str, payload: ToolUpdate):
         "name": payload.name or "",
         "description": payload.description or "",
         "status": payload.status or "available",
+        "owner": payload.owner or "unknown",
     }
     TOOLS.append(new_tool)
     return new_tool
@@ -235,6 +246,17 @@ def test_discover_tools():
     assert isinstance(data, list)
     assert len(data) >= 1
     assert data[0]["name"] == "web-search-tool"
+
+
+def test_get_owner_detail():
+    response = client.get("/owner/platform-team")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, dict)
+    assert "agents" in data
+    assert "tools" in data
+    assert any(agent["owner"] == "platform-team" for agent in data["agents"])
+    assert any(tool["owner"] == "platform-team" for tool in data["tools"])
 
 
 def test_put_agent_detail():
