@@ -7,9 +7,11 @@ loaded via plain `<script>` tags, and JSX is compiled in-browser at runtime.
 
 ## Files
 
-- `index.html` — the app (markup, styles, and JSX all in one file)
-- `display.json` — the tree data it renders (edit this to change the diagram)
+- `index.html` — static viewer app (markup, styles, and JSX all in one file)
+- `display.json` — the tree data the static viewer renders (edit this to change the diagram)
 - `vendor/` — local copies of React, ReactDOM, and Babel standalone (no CDN/internet required)
+- `api.py` — FastAPI app exposing `POST /visualize` to render an arbitrary tree JSON on demand
+- `tree_view.py` — shared HTML/CSS/JSX template used by `api.py` to build the response page
 
 ## Prerequisites
 
@@ -70,3 +72,50 @@ built-in example tree so it never renders blank.
   local server (see Prerequisites above).
 - **Diagram looks stale** — hard-refresh the browser (the static server
   doesn't cache aggressively, but browsers sometimes do).
+
+## Render-on-demand API
+
+`api.py` is a separate FastAPI app (independent of the static viewer above)
+that renders any posted tree JSON into a full HTML page.
+
+### Run it
+
+From this `interface/` directory (requires `fastapi` and `uvicorn`, already
+in the repo's root `requirements.txt`):
+
+```bash
+python -m uvicorn api:app --host 127.0.0.1 --port 8000
+```
+
+### Use it
+
+```bash
+curl -X POST http://127.0.0.1:8000/visualize \
+  -H "Content-Type: application/json" \
+  -d @display.json \
+  -o result.html
+```
+
+Open `result.html` in a browser (the server must still be running — the
+page loads React/Babel from `/vendor`, served by the same app). The request
+body must use the same shape as `display.json` (see above).
+
+### Alternative: browser DevTools console
+
+Navigate to `http://127.0.0.1:8000/docs` (same origin as the API), open the
+console, and run:
+
+```js
+fetch('/visualize', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    "agent-id": "agent-main",
+    "children": [
+      { "agent-id": "sub-agent", "children": [ { "tool-id": "some-tool" } ] }
+    ]
+  })
+})
+  .then(r => r.text())
+  .then(html => { document.open(); document.write(html); document.close(); });
+```
